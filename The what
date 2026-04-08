@@ -1,0 +1,160 @@
+--[[ 
+    PROJECT: LeoSingha508 INSANE (FULL ENGLISH EDITION)
+    BASE POS: X: -95.75, Y: 304.05, Z: -0.37
+    FEATURES: Speed 155 | 3D Orbit | 0.5s Click | 100m Height Limit
+]]
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local LocalPlayer = Players.LocalPlayer
+local Camera = workspace.CurrentCamera
+local VU = game:GetService("VirtualUser")
+local VIM = game:GetService("VirtualInputManager")
+
+-- Base Strategy Position
+local StrategyPos = CFrame.new(-95.75, 304.05, -0.37)
+local Active = false 
+local SpawnTime = tick()
+local RotationAngle = 0
+
+-- Create UI
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "LeoSingha508_Universal_EN"
+local UI_Parent = pcall(function() return game:GetService("CoreGui") end) and game:GetService("CoreGui") or LocalPlayer:WaitForChild("PlayerGui")
+ScreenGui.Parent = UI_Parent
+ScreenGui.ResetOnSpawn = false 
+
+local MainFrame = Instance.new("Frame", ScreenGui)
+MainFrame.Size = UDim2.new(0, 220, 0, 110)
+MainFrame.Position = UDim2.new(0.5, -110, 0.5, -55)
+MainFrame.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
+MainFrame.Active = true
+MainFrame.Draggable = true
+Instance.new("UICorner", MainFrame).CornerRadius = UDim.new(0, 10)
+
+local UIStroke = Instance.new("UIStroke", MainFrame)
+UIStroke.Thickness = 3
+UIStroke.Color = Color3.new(1, 0, 0)
+
+local Title = Instance.new("TextLabel", MainFrame)
+Title.Size = UDim2.new(1, 0, 0, 40)
+Title.BackgroundTransparency = 1
+Title.Text = "LeoSingha508 HUB"
+Title.TextColor3 = Color3.new(1, 1, 1)
+Title.Font = Enum.Font.GothamBold
+Title.TextSize = 14
+
+local KillBtn = Instance.new("TextButton", MainFrame)
+KillBtn.Size = UDim2.new(0, 180, 0, 45)
+KillBtn.Position = UDim2.new(0.5, -90, 0.5, 5)
+KillBtn.Text = "AUTO KILL: OFF"
+KillBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+KillBtn.TextColor3 = Color3.new(1, 1, 1)
+KillBtn.Font = Enum.Font.GothamBold
+Instance.new("UICorner", KillBtn)
+
+-- Rainbow Effect
+task.spawn(function()
+    while task.wait() do
+        local hue = tick() % 5 / 5
+        Title.TextColor3 = Color3.fromHSV(hue, 1, 1)
+        UIStroke.Color = Color3.fromHSV(hue, 1, 1)
+    end
+end)
+
+KillBtn.MouseButton1Click:Connect(function()
+    Active = not Active
+    KillBtn.Text = Active and "AUTO KILL: ON" or "AUTO KILL: OFF"
+    KillBtn.BackgroundColor3 = Active and Color3.fromRGB(180, 0, 0) or Color3.fromRGB(40, 40, 40)
+end)
+
+-- Character Spawn Tracking
+LocalPlayer.CharacterAdded:Connect(function()
+    SpawnTime = tick()
+end)
+
+-- Force Click Loop (0.5s Interval)
+task.spawn(function()
+    while true do
+        if Active and (tick() - SpawnTime > 3) then
+            local CenterX = Camera.ViewportSize.X / 2
+            local CenterY = Camera.ViewportSize.Y / 2
+            pcall(function()
+                -- Multi-Method Clicking for Compatibility
+                VIM:SendMouseButtonEvent(CenterX, CenterY, 0, true, game, 0)
+                task.wait(0.01)
+                VIM:SendMouseButtonEvent(CenterX, CenterY, 0, false, game, 0)
+                VU:CaptureController()
+                VU:Button1Down(Vector2.new(CenterX, CenterY))
+                task.wait(0.01)
+                VU:Button1Up(Vector2.new(CenterX, CenterY))
+            end)
+        end
+        task.wait(0.5)
+    end
+end)
+
+-- Target Finder (with 100m Height Filter)
+local function GetTarget()
+    local Target = nil
+    local LowHP = math.huge
+    local MyRoot = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+    
+    if not MyRoot then return nil end
+
+    for _, v in pairs(Players:GetPlayers()) do
+        if v ~= LocalPlayer and v.Character and v.Character:FindFirstChild("Humanoid") and v.Character:FindFirstChild("HumanoidRootPart") then
+            local Hum = v.Character.Humanoid
+            local TRoot = v.Character.HumanoidRootPart
+            
+            -- Height Difference Check
+            local HeightDiff = TRoot.Position.Y - MyRoot.Position.Y
+            
+            if Hum.Health > 0 and Hum.Health < LowHP and math.abs(HeightDiff) <= 100 then
+                LowHP = Hum.Health
+                Target = v
+            end
+        end
+    end
+    return Target
+end
+
+-- Main Core Engine
+RunService.Heartbeat:Connect(function()
+    local Char = LocalPlayer.Character
+    if not Char or not Char:FindFirstChild("HumanoidRootPart") or not Char:FindFirstChild("Humanoid") then return end
+    
+    local Root = Char.HumanoidRootPart
+    local Hum = Char.Humanoid
+    local TimeDiff = tick() - SpawnTime
+
+    -- 1. ABSOLUTE SPAWN LOCK (3 SECONDS)
+    if TimeDiff < 3 then
+        Root.CFrame = StrategyPos
+        Root.Velocity = Vector3.zero
+        Camera.CameraSubject = Hum
+        return 
+    end
+
+    -- 2. AUTO KILL MODE (Speed 155 + 3D Orbit)
+    if Active then
+        local Target = GetTarget()
+        if Target and Target.Character and Target.Character:FindFirstChild("HumanoidRootPart") then
+            local TRoot = Target.Character.HumanoidRootPart
+            Camera.CameraSubject = Hum
+            
+            RotationAngle = RotationAngle + math.rad(155 * 0.45)
+            
+            -- 3D Offset Calculation
+            local Radius = 3.8
+            local X = math.cos(RotationAngle) * Radius
+            local Y = math.sin(RotationAngle * 0.7) * 2.5 
+            local Z = math.sin(RotationAngle) * Radius
+            
+            Root.CFrame = CFrame.new(TRoot.Position + Vector3.new(X, 1.2 + Y, Z), TRoot.Position)
+        else
+            Camera.CameraSubject = Hum
+        end
+    end
+end)  
+ 
