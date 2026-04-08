@@ -1,7 +1,7 @@
 --[[ 
-    PROJECT: LeoSingha508 UNDERFOOT (GROUND ONLY EDITION)
-    TARGET LIMIT: Target Y must be <= 278.86
-    FEATURES: Underfoot Warp | Face Up | NoClip | 0.5s Click
+    PROJECT: LeoSingha508 UNDERFOOT (ANTI-STEAL & HYPER CLICK)
+    FEATURES: 0.05s Click | Anti-Steal Target | Height 278.86 | Anti-Friend | Auto-Hop
+    LOGIC: Skip target if someone else is already under their feet.
 ]]
 
 local Players = game:GetService("Players")
@@ -10,16 +10,19 @@ local LocalPlayer = Players.LocalPlayer
 local Camera = workspace.CurrentCamera
 local VU = game:GetService("VirtualUser")
 local VIM = game:GetService("VirtualInputManager")
+local UserInputService = game:GetService("UserInputService")
+local HttpService = game:GetService("HttpService")
+local TeleportService = game:GetService("TeleportService")
 
--- Base Strategy Position (Spawn Lock)
+-- Configuration
 local StrategyPos = CFrame.new(-95.75, 304.05, -0.37)
-local MaxTargetHeight = 278.86 -- พิกัดเพดานสูงสุดที่พี่สั่ง
-local Active = false 
+local MaxTargetHeight = 278.86
+local Active = true 
 local SpawnTime = tick()
 
--- Create UI
+-- UI System
 local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "LeoSingha508_GroundKill"
+ScreenGui.Name = "LeoSingha508_Hyper"
 local UI_Parent = pcall(function() return game:GetService("CoreGui") end) and game:GetService("CoreGui") or LocalPlayer:WaitForChild("PlayerGui")
 ScreenGui.Parent = UI_Parent
 ScreenGui.ResetOnSpawn = false 
@@ -27,10 +30,10 @@ ScreenGui.ResetOnSpawn = false
 local MainFrame = Instance.new("Frame", ScreenGui)
 MainFrame.Size = UDim2.new(0, 220, 0, 110)
 MainFrame.Position = UDim2.new(0.5, -110, 0.5, -55)
-MainFrame.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
+MainFrame.BackgroundColor3 = Color3.fromRGB(10, 10, 10)
 MainFrame.Active = true
 MainFrame.Draggable = true
-Instance.new("UICorner", MainFrame).CornerRadius = UDim.new(0, 10)
+Instance.new("UICorner", MainFrame)
 
 local UIStroke = Instance.new("UIStroke", MainFrame)
 UIStroke.Thickness = 3
@@ -39,19 +42,51 @@ UIStroke.Color = Color3.new(1, 0, 0)
 local Title = Instance.new("TextLabel", MainFrame)
 Title.Size = UDim2.new(1, 0, 0, 40)
 Title.BackgroundTransparency = 1
-Title.Text = "LeoSingha508 HUB"
+Title.Text = "LeoSingha508 HYPER"
 Title.TextColor3 = Color3.new(1, 1, 1)
 Title.Font = Enum.Font.GothamBold
-Title.TextSize = 14
+Title.TextSize = 13
 
 local KillBtn = Instance.new("TextButton", MainFrame)
 KillBtn.Size = UDim2.new(0, 180, 0, 45)
 KillBtn.Position = UDim2.new(0.5, -90, 0.5, 5)
-KillBtn.Text = "AUTO KILL: OFF"
-KillBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+KillBtn.Text = "AUTO KILL: ON"
+KillBtn.BackgroundColor3 = Color3.fromRGB(200, 0, 0)
 KillBtn.TextColor3 = Color3.new(1, 1, 1)
 KillBtn.Font = Enum.Font.GothamBold
 Instance.new("UICorner", KillBtn)
+
+-- Server Hopper
+local function HopServer()
+    pcall(function()
+        local servers = HttpService:JSONDecode(game:HttpGet("https://games.roblox.com/v1/games/" .. game.PlaceId .. "/servers/Public?sortOrder=Desc&limit=100")).data
+        for _, v in ipairs(servers) do
+            if v.playing < v.maxPlayers and v.id ~= game.JobId then
+                TeleportService:TeleportToPlaceInstance(game.PlaceId, v.id)
+                break
+            end
+        end
+    end)
+end
+
+KillBtn.MouseButton1Click:Connect(function()
+    Active = not Active
+    if Active then
+        KillBtn.Text = "AUTO KILL: ON"
+        KillBtn.BackgroundColor3 = Color3.fromRGB(200, 0, 0)
+        UserInputService.MouseIconEnabled = false 
+    else
+        Active = false
+        KillBtn.Text = "AUTO KILL: OFF"
+        KillBtn.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+        UserInputService.MouseIconEnabled = true
+        if LocalPlayer.Character then
+            for _, v in pairs(LocalPlayer.Character:GetDescendants()) do
+                if v:IsA("BasePart") then v.CanCollide = true end
+            end
+        end
+    end
+end)
 
 -- Rainbow Effect
 task.spawn(function()
@@ -62,37 +97,12 @@ task.spawn(function()
     end
 end)
 
-KillBtn.MouseButton1Click:Connect(function()
-    Active = not Active
-    KillBtn.Text = Active and "AUTO KILL: ON" or "AUTO KILL: OFF"
-    KillBtn.BackgroundColor3 = Active and Color3.fromRGB(180, 0, 0) or Color3.fromRGB(40, 40, 40)
-end)
-
--- Character Spawn Tracking
-LocalPlayer.CharacterAdded:Connect(function()
-    SpawnTime = tick()
-end)
-
--- NoClip System
-RunService.Stepped:Connect(function()
-    if Active then
-        if LocalPlayer.Character then
-            for _, part in pairs(LocalPlayer.Character:GetDescendants()) do
-                if part:IsA("BasePart") then
-                    part.CanCollide = false
-                end
-            end
-        end
-    end
-end)
-
--- Force Click Loop (0.5s)
+-- Hyper Click Loop (0.05s)
 task.spawn(function()
     while true do
         if Active and (tick() - SpawnTime > 3) then
-            local CenterX = Camera.ViewportSize.X / 2
-            local CenterY = Camera.ViewportSize.Y / 2
             pcall(function()
+                local CenterX, CenterY = Camera.ViewportSize.X/2, Camera.ViewportSize.Y/2
                 VIM:SendMouseButtonEvent(CenterX, CenterY, 0, true, game, 0)
                 task.wait(0.01)
                 VIM:SendMouseButtonEvent(CenterX, CenterY, 0, false, game, 0)
@@ -102,57 +112,88 @@ task.spawn(function()
                 VU:Button1Up(Vector2.new(CenterX, CenterY))
             end)
         end
-        task.wait(0.5)
+        task.wait(0.05) -- 0.05s Turbo
     end
 end)
 
--- Target Finder (Filter by Y: 278.86)
-local function GetTarget()
-    local Target = nil
-    local LowHP = math.huge
-
-    for _, v in pairs(Players:GetPlayers()) do
-        if v ~= LocalPlayer and v.Character and v.Character:FindFirstChild("Humanoid") and v.Character:FindFirstChild("HumanoidRootPart") then
-            local Hum = v.Character.Humanoid
-            local TRoot = v.Character.HumanoidRootPart
-            
-            -- **เงื่อนไขสำคัญ: ถ้าศัตรูอยู่สูงเกินพิกัด Y ที่กำหนด (278.86) จะไม่เอา**
-            if Hum.Health > 0 and Hum.Health < LowHP and TRoot.Position.Y <= MaxTargetHeight then
-                LowHP = Hum.Health
-                Target = v
+-- Check if someone is already targeting this player
+local function IsTargetOccupied(target)
+    for _, p in pairs(Players:GetPlayers()) do
+        if p ~= LocalPlayer and p ~= target and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
+            local dist = (p.Character.HumanoidRootPart.Position - (target.Character.HumanoidRootPart.Position + Vector3.new(0, -3.5, 0))).Magnitude
+            if dist < 2 then -- ถ้ามีใครอยู่ห่างจากจุดวาร์ปใต้ตีนไม่เกิน 2 หน่วย ถือว่าโดนแย่งแล้ว
+                return true
             end
         end
     end
-    return Target
+    return false
 end
 
--- Core Engine (Underfoot Warp)
+-- Target Finder (Anti-Friend & Anti-Steal)
+local function GetValidTargets()
+    local ValidTargets = {}
+    for _, v in pairs(Players:GetPlayers()) do
+        if v ~= LocalPlayer and not LocalPlayer:IsFriendsWith(v.UserId) then
+            if v.Character and v.Character:FindFirstChild("Humanoid") and v.Character:FindFirstChild("HumanoidRootPart") then
+                local TRoot = v.Character.HumanoidRootPart
+                local Head = v.Character:FindFirstChild("Head")
+                local IsInvis = (Head and Head.Transparency > 0.5) 
+                
+                -- เงื่อนไข: ไม่โปร่งใส + ไม่สูงเกินพิกัด + เลือด > 0 + ไม่มีคนอื่นจองอยู่
+                if not IsInvis and TRoot.Position.Y <= MaxTargetHeight and v.Character.Humanoid.Health > 0 then
+                    if not IsTargetOccupied(v) then
+                        table.insert(ValidTargets, v)
+                    end
+                end
+            end
+        end
+    end
+    return ValidTargets
+end
+
+-- Server Check
+task.spawn(function()
+    while task.wait(5) do
+        if Active and #GetValidTargets() < 1 then HopServer() end
+    end
+end)
+
+-- Core Engine
 RunService.Heartbeat:Connect(function()
     local Char = LocalPlayer.Character
-    if not Char or not Char:FindFirstChild("HumanoidRootPart") or not Char:FindFirstChild("Humanoid") then return end
-    
+    if not Char or not Char:FindFirstChild("HumanoidRootPart") then return end
     local Root = Char.HumanoidRootPart
-    local Hum = Char.Humanoid
     local TimeDiff = tick() - SpawnTime
 
-    -- 1. SPAWN LOCK 3s
-    if TimeDiff < 3 then
-        Root.CFrame = StrategyPos
-        Root.Velocity = Vector3.zero
-        return 
-    end
-
-    -- 2. UNDERFOOT KILL MODE (Filter Enabled)
     if Active then
-        local Target = GetTarget()
-        if Target and Target.Character and Target.Character:FindFirstChild("HumanoidRootPart") then
-            local TRoot = Target.Character.HumanoidRootPart
-            
-            -- Warp Underfoot & Look Up
-            local UnderPos = TRoot.Position + Vector3.new(0, -3.5, 0)
-            Root.CFrame = CFrame.new(UnderPos) * CFrame.Angles(math.rad(90), 0, 0)
-            
+        for _, part in pairs(Char:GetDescendants()) do
+            if part:IsA("BasePart") then part.CanCollide = false end
+        end
+
+        if TimeDiff < 3 then
+            Root.CFrame = StrategyPos
+            Root.Velocity = Vector3.zero
+            return 
+        end
+
+        local targets = GetValidTargets()
+        local BestTarget = nil
+        local MinHP = math.huge
+        
+        for _, t in pairs(targets) do
+            if t.Character.Humanoid.Health < MinHP then
+                MinHP = t.Character.Humanoid.Health
+                BestTarget = t
+            end
+        end
+
+        if BestTarget then
+            local TRoot = BestTarget.Character.HumanoidRootPart
+            Root.CFrame = CFrame.new(TRoot.Position + Vector3.new(0, -3.5, 0)) * CFrame.Angles(math.rad(90), 0, 0)
             Root.Velocity = Vector3.zero
         end
     end
 end)
+
+LocalPlayer.CharacterAdded:Connect(function() SpawnTime = tick() end)
+UserInputService.MouseIconEnabled = not Active
