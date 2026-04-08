@@ -1,7 +1,7 @@
 --[[ 
-    PROJECT: LeoSingha508 UNDERFOOT (ANTI-STEAL & HYPER CLICK)
-    FEATURES: 0.05s Click | Anti-Steal Target | Height 278.86 | Anti-Friend | Auto-Hop
-    LOGIC: Skip target if someone else is already under their feet.
+    PROJECT: LeoSingha508 UNDERFOOT (ANTI-RAINBOW & FULL RESET)
+    FEATURES: 0.05s Click | Anti-Steal | Anti-Rainbow Aura | Full Reset
+    LOGIC: Skip if target has "Rainbow" effects. Fully Restore on OFF.
 ]]
 
 local Players = game:GetService("Players")
@@ -22,7 +22,7 @@ local SpawnTime = tick()
 
 -- UI System
 local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "LeoSingha508_Hyper"
+ScreenGui.Name = "LeoSingha508_Finalv2"
 local UI_Parent = pcall(function() return game:GetService("CoreGui") end) and game:GetService("CoreGui") or LocalPlayer:WaitForChild("PlayerGui")
 ScreenGui.Parent = UI_Parent
 ScreenGui.ResetOnSpawn = false 
@@ -42,7 +42,7 @@ UIStroke.Color = Color3.new(1, 0, 0)
 local Title = Instance.new("TextLabel", MainFrame)
 Title.Size = UDim2.new(1, 0, 0, 40)
 Title.BackgroundTransparency = 1
-Title.Text = "LeoSingha508 HYPER"
+Title.Text = "LeoSingha508 HYPER V2"
 Title.TextColor3 = Color3.new(1, 1, 1)
 Title.Font = Enum.Font.GothamBold
 Title.TextSize = 13
@@ -56,17 +56,23 @@ KillBtn.TextColor3 = Color3.new(1, 1, 1)
 KillBtn.Font = Enum.Font.GothamBold
 Instance.new("UICorner", KillBtn)
 
--- Server Hopper
-local function HopServer()
-    pcall(function()
-        local servers = HttpService:JSONDecode(game:HttpGet("https://games.roblox.com/v1/games/" .. game.PlaceId .. "/servers/Public?sortOrder=Desc&limit=100")).data
-        for _, v in ipairs(servers) do
-            if v.playing < v.maxPlayers and v.id ~= game.JobId then
-                TeleportService:TeleportToPlaceInstance(game.PlaceId, v.id)
-                break
+-- Reset Function (Walk Normal)
+local function FullReset()
+    Active = false
+    KillBtn.Text = "AUTO KILL: OFF"
+    KillBtn.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+    UserInputService.MouseIconEnabled = true
+    
+    if LocalPlayer.Character then
+        local Root = LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+        if Root then Root.Velocity = Vector3.zero end
+        
+        for _, v in pairs(LocalPlayer.Character:GetDescendants()) do
+            if v:IsA("BasePart") then
+                v.CanCollide = true -- คืนค่าให้เดินได้ปกติ
             end
         end
-    end)
+    end
 end
 
 KillBtn.MouseButton1Click:Connect(function()
@@ -76,19 +82,11 @@ KillBtn.MouseButton1Click:Connect(function()
         KillBtn.BackgroundColor3 = Color3.fromRGB(200, 0, 0)
         UserInputService.MouseIconEnabled = false 
     else
-        Active = false
-        KillBtn.Text = "AUTO KILL: OFF"
-        KillBtn.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-        UserInputService.MouseIconEnabled = true
-        if LocalPlayer.Character then
-            for _, v in pairs(LocalPlayer.Character:GetDescendants()) do
-                if v:IsA("BasePart") then v.CanCollide = true end
-            end
-        end
+        FullReset()
     end
 end)
 
--- Rainbow Effect
+-- Rainbow UI Effect
 task.spawn(function()
     while task.wait() do
         local hue = tick() % 5 / 5
@@ -97,7 +95,7 @@ task.spawn(function()
     end
 end)
 
--- Hyper Click Loop (0.05s)
+-- 0.05s Hyper Click
 task.spawn(function()
     while true do
         if Active and (tick() - SpawnTime > 3) then
@@ -112,16 +110,17 @@ task.spawn(function()
                 VU:Button1Up(Vector2.new(CenterX, CenterY))
             end)
         end
-        task.wait(0.05) -- 0.05s Turbo
+        task.wait(0.05)
     end
 end)
 
--- Check if someone is already targeting this player
-local function IsTargetOccupied(target)
-    for _, p in pairs(Players:GetPlayers()) do
-        if p ~= LocalPlayer and p ~= target and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
-            local dist = (p.Character.HumanoidRootPart.Position - (target.Character.HumanoidRootPart.Position + Vector3.new(0, -3.5, 0))).Magnitude
-            if dist < 2 then -- ถ้ามีใครอยู่ห่างจากจุดวาร์ปใต้ตีนไม่เกิน 2 หน่วย ถือว่าโดนแย่งแล้ว
+-- Check for Rainbow Aura
+local function HasRainbowAura(player)
+    if not player.Character then return false end
+    for _, v in pairs(player.Character:GetDescendants()) do
+        -- เช็ค Highlight, Particle หรือชื่อที่มีคำว่า Rainbow
+        if v:IsA("Highlight") or v:IsA("SelectionBox") or v:IsA("ParticleEmitter") then
+            if string.find(string.lower(v.Name), "rainbow") then
                 return true
             end
         end
@@ -129,7 +128,7 @@ local function IsTargetOccupied(target)
     return false
 end
 
--- Target Finder (Anti-Friend & Anti-Steal)
+-- Target Filter
 local function GetValidTargets()
     local ValidTargets = {}
     for _, v in pairs(Players:GetPlayers()) do
@@ -137,11 +136,10 @@ local function GetValidTargets()
             if v.Character and v.Character:FindFirstChild("Humanoid") and v.Character:FindFirstChild("HumanoidRootPart") then
                 local TRoot = v.Character.HumanoidRootPart
                 local Head = v.Character:FindFirstChild("Head")
-                local IsInvis = (Head and Head.Transparency > 0.5) 
                 
-                -- เงื่อนไข: ไม่โปร่งใส + ไม่สูงเกินพิกัด + เลือด > 0 + ไม่มีคนอื่นจองอยู่
-                if not IsInvis and TRoot.Position.Y <= MaxTargetHeight and v.Character.Humanoid.Health > 0 then
-                    if not IsTargetOccupied(v) then
+                -- เงื่อนไข: ไม่ล่องหน + ไม่สูงเกินพิกัด + ไม่ใช่สายรุ้ง
+                if (Head and Head.Transparency <= 0.5) and TRoot.Position.Y <= MaxTargetHeight then
+                    if not HasRainbowAura(v) then
                         table.insert(ValidTargets, v)
                     end
                 end
@@ -151,7 +149,19 @@ local function GetValidTargets()
     return ValidTargets
 end
 
--- Server Check
+-- Server Hopper
+local function HopServer()
+    pcall(function()
+        local servers = HttpService:JSONDecode(game:HttpGet("https://games.roblox.com/v1/games/" .. game.PlaceId .. "/servers/Public?sortOrder=Desc&limit=100")).data
+        for _, v in ipairs(servers) do
+            if v.playing < v.maxPlayers and v.id ~= game.JobId then
+                TeleportService:TeleportToPlaceInstance(game.PlaceId, v.id)
+                break
+            end
+        end
+    end)
+end
+
 task.spawn(function()
     while task.wait(5) do
         if Active and #GetValidTargets() < 1 then HopServer() end
@@ -166,6 +176,7 @@ RunService.Heartbeat:Connect(function()
     local TimeDiff = tick() - SpawnTime
 
     if Active then
+        -- Disable Collision while Active
         for _, part in pairs(Char:GetDescendants()) do
             if part:IsA("BasePart") then part.CanCollide = false end
         end
@@ -181,7 +192,8 @@ RunService.Heartbeat:Connect(function()
         local MinHP = math.huge
         
         for _, t in pairs(targets) do
-            if t.Character.Humanoid.Health < MinHP then
+            -- เช็คซ้ำอีกรอบ ถ้าตอนล็อคอยู่แล้วเขาเปิดออร่าสีรุ้ง ให้หลุดทันที
+            if not HasRainbowAura(t) and t.Character.Humanoid.Health < MinHP then
                 MinHP = t.Character.Humanoid.Health
                 BestTarget = t
             end
@@ -190,6 +202,8 @@ RunService.Heartbeat:Connect(function()
         if BestTarget then
             local TRoot = BestTarget.Character.HumanoidRootPart
             Root.CFrame = CFrame.new(TRoot.Position + Vector3.new(0, -3.5, 0)) * CFrame.Angles(math.rad(90), 0, 0)
+            Root.Velocity = Vector3.zero
+        else
             Root.Velocity = Vector3.zero
         end
     end
